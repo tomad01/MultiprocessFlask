@@ -63,34 +63,38 @@ def listener(task_queue,max_nr_of_processes):
             processes.pop(proc_name).join()
             logger.info(m)                      
         else:
-            try:
-                task = task_queue.get(timeout=5)  
-                proc = multiprocessing.Process(target=worker_function, args=(task,log_queue,))                
-                proc.start()
-                logger.info(f'starting worker {proc.name}\n')                
-                processes[proc.name]=proc
-            except Exception as er:
-                pass
-                # ignore empty queue error
-                #f.write(f'Error {str(er)}\n')
-                #f.flush()
-        
-        # safety
-        if len(processes)==max_nr_of_processes:
-            logger.info('cleaning all processes\n')            
-            for process in processes.values():
-                process.join()
+            if len(processes)<max_nr_of_processes:
                 try:
-                    m = log_queue.get()
-                    if m:
-                        logger.info(str(m))                        
+                    task = task_queue.get(timeout=5)                  
+                    proc = multiprocessing.Process(target=worker_function, args=(task,log_queue,))                
+                    proc.start()
+                    logger.info(f'starting worker {proc.name}\n')                
+                    processes[proc.name]=proc
                 except Exception as er:
-                    #f.write(f'Error {str(er)}\n')
-                    #f.flush()                        
                     pass
-            # make sure all processes are joined
-            #multiprocessing.active_children()
-            processes = {}
+                    # ignore empty queue error
+                    #f.write(f'Error {str(er)}\n')
+                    #f.flush()
+            else:
+                # Wait a bit to not overrun the main process in case of long lasting processes
+                time.sleep(.1)
+        
+        # # safety
+        # if len(processes)==max_nr_of_processes:
+        #     logger.info('cleaning all processes\n')            
+        #     for process in processes.values():
+        #         process.join()
+        #         try:
+        #             m = log_queue.get()
+        #             if m:
+        #                 logger.info(str(m))                        
+        #         except Exception as er:
+        #             #f.write(f'Error {str(er)}\n')
+        #             #f.flush()                        
+        #             pass
+        #     # make sure all processes are joined
+        #     #multiprocessing.active_children()
+        #     processes = {}
 
 if __name__ == '__main__':
     
