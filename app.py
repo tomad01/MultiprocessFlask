@@ -1,9 +1,10 @@
-from flask import Flask,request,json
+from flask import Flask,request,json,session
 import time,pdb,re
 import multiprocessing,logging
 
 
 app = Flask(__name__)
+app.secret_key = 'super secret key'
 MAX_QUEUE_SIZE = 10 
 MAX_NR_OF_PROCESSES = 4
 
@@ -15,7 +16,7 @@ def worker_function(duration:int,queue):
 def get_tasks_status(): 
     jobs = _queue.qsize()     
     response = app.response_class(
-        response=json.dumps(f'we have curently {jobs} jobs in progress'),
+        response=json.dumps(f'we have curently {jobs} jobs in progress, all jobs from this session: {session.get("jobs")}'),
         mimetype='application/json'
     )
     return response
@@ -25,7 +26,11 @@ def run_new_task():
     duration = request.args.get('worker_duration')  
 
     if  _queue.qsize() < MAX_QUEUE_SIZE:
-        _queue.put(int(duration))         
+        _queue.put(int(duration))     
+        if 'jobs' in session:
+            session['jobs']+=1
+        else:
+            session['jobs']=1
         message = 'worker started'
     else: 
         message = 'two many items in the queue'

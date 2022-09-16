@@ -1,7 +1,7 @@
-import json
+import json,time
 from app import app
 from urllib.parse import urlencode
-PARAMS = {'worker_duration':3}    
+
 
 # app.app.config['TESTING'] = True
 # client = app.app.test_client()
@@ -12,9 +12,12 @@ PARAMS = {'worker_duration':3}
 
 
 import requests
+s = requests.Session()
 URL = f'http://127.0.0.1:5000/run_task'
-rr = requests.get(url = URL, params = PARAMS)
-print(rr.json())
+for job in [1,2,4,3]:    
+    rr = s.get(url = URL, params = {'worker_duration':job})
+    print(rr.json())
+    time.sleep(1)
 URL = f'http://127.0.0.1:5000/tasks_status'
-rr = requests.get(url = URL)
+rr = s.get(url = URL)
 print(rr.json())
