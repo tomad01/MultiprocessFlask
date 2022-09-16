@@ -42,56 +42,55 @@ def run_new_task():
     return response
 
 def listener(task_queue,max_nr_of_processes):
-    fn = 'processes.log'
+    logging.basicConfig(filename='logs.log',
+                    filemode='a',
+                    format='%(asctime)s, %(levelname)s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    level=logging.INFO)
+    logger = logging.getLogger()                   
+
     processes = {}
     log_queue = multiprocessing.Queue() 
     multiprocessing.log_to_stderr()
-    logger = multiprocessing.get_logger()
-    logger.setLevel(logging.INFO)    
-    with open(fn, 'w') as f:
-        f.write('starting main process\n')
-        f.flush()
-        while 1:                      
-            if not log_queue.empty():
-                m = log_queue.get()          
-                proc_name = re.search('worker\s(.+)\sfinished', m).group(1)
-                processes.pop(proc_name).join()
-                f.write(str(m) + '\n')
-                f.flush()         
-            else:
-                try:
-                    task = task_queue.get(timeout=5)  
+    #logger = multiprocessing.get_logger()
+    #logger.setLevel(logging.INFO)    
     
-                    proc = multiprocessing.Process(target=worker_function, args=(task,log_queue,))
-                    
-                    proc.start()
-                    f.write(f'starting worker {proc.name}\n')
-                    f.flush()
-                    processes[proc.name]=proc
+    logger.info('starting main process')
+    while 1:                      
+        if not log_queue.empty():
+            m = log_queue.get()          
+            proc_name = re.search('worker\s(.+)\sfinished', m).group(1)
+            processes.pop(proc_name).join()
+            logger.info(m)                      
+        else:
+            try:
+                task = task_queue.get(timeout=5)  
+                proc = multiprocessing.Process(target=worker_function, args=(task,log_queue,))                
+                proc.start()
+                logger.info(f'starting worker {proc.name}\n')                
+                processes[proc.name]=proc
+            except Exception as er:
+                pass
+                # ignore empty queue error
+                #f.write(f'Error {str(er)}\n')
+                #f.flush()
+        
+        # safety
+        if len(processes)==max_nr_of_processes:
+            logger.info('cleaning all processes\n')            
+            for process in processes.values():
+                process.join()
+                try:
+                    m = log_queue.get()
+                    if m:
+                        logger.info(str(m))                        
                 except Exception as er:
-                    pass
-                    # ignore empty queue error
                     #f.write(f'Error {str(er)}\n')
-                    #f.flush()
-            
-            # safety
-            if len(processes)==max_nr_of_processes:
-                f.write('cleaning all processes\n')
-                f.flush()                
-                for process in processes.values():
-                    process.join()
-                    try:
-                        m = log_queue.get()
-                        if m:
-                            f.write(str(m) + '\n')
-                            f.flush()
-                    except Exception as er:
-                        #f.write(f'Error {str(er)}\n')
-                        #f.flush()                        
-                        pass
-                # make sure all processes are joined
-                #multiprocessing.active_children()
-                processes = {}
+                    #f.flush()                        
+                    pass
+            # make sure all processes are joined
+            #multiprocessing.active_children()
+            processes = {}
 
 if __name__ == '__main__':
     
